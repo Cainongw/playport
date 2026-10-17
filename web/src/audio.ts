@@ -10,8 +10,10 @@ interface StreamState {
   gain: GainNode;
 }
 
-const MIN_LATENCY_SECONDS = 0.12;
-const MAX_LATENCY_SECONDS = 0.35;
+const MUSIC_LATENCY_SECONDS = 0.6;
+const VOICE_LATENCY_SECONDS = 0.12;
+const MAX_MUSIC_LATENCY_SECONDS = 1.5;
+const MAX_VOICE_LATENCY_SECONDS = 0.5;
 
 /** Decodes and plays CarPlay audio streams (AAC-LC, Opus, LPCM) via Web Audio. */
 export class AudioEngine {
@@ -185,9 +187,16 @@ export class AudioEngine {
 
   private schedule(state: StreamState, buffer: AudioBuffer): void {
     const now = this.context.currentTime;
-    if (state.nextPlayTime < now + MIN_LATENCY_SECONDS || state.nextPlayTime > now + MAX_LATENCY_SECONDS) {
-      state.nextPlayTime = now + MIN_LATENCY_SECONDS;
+    const music = state.name.toLowerCase() === 'media';
+    const latency = music ? MUSIC_LATENCY_SECONDS : VOICE_LATENCY_SECONDS;
+    const maxLatency = music ? MAX_MUSIC_LATENCY_SECONDS : MAX_VOICE_LATENCY_SECONDS;
+    // Re-anchor only after a real underrun. Re-anchoring whenever the target lead
+    // dips creates gaps on ordinary jitter; rewinding a full queue overlaps buffers.
+    // Wireless music may arrive in ~400 ms bursts; speech keeps its smaller delay.
+    if (state.nextPlayTime <= now) {
+      state.nextPlayTime = now + latency;
     }
+    if (state.nextPlayTime > now + maxLatency) return;
     const source = this.context.createBufferSource();
     source.buffer = buffer;
     source.connect(state.gain);

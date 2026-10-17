@@ -29,7 +29,7 @@ export class Connection {
   private open(): void {
     this.handlers.onState('connecting');
     const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-    const url = `${scheme}://${location.host}/ws?token=${encodeURIComponent(this.token)}`;
+    const url = `${scheme}://${location.host}/ws${this.token ? `?token=${encodeURIComponent(this.token)}` : ''}`;
     const socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
     this.socket = socket;

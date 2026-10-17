@@ -24,6 +24,10 @@ object AirPlayInfoPlist {
     private const val PRIORITY_NICE_TO_HAVE = 100
     private const val CONSTRAINT_ANYTIME = 100
 
+    /** Shared by Bonjour and /info, as in DiPlay's same-LAN receiver. */
+    fun features(config: AirPlayConfig): Long =
+        if (config.disableAudioOutput) CARPLAY_FEATURES_NO_AUDIO else CARPLAY_FEATURES
+
     fun build(config: AirPlayConfig): Map<String, Any?> {
         val displays = arrayListOf<Any?>(
             displayEntry(config.main, STREAM_TYPE_MAIN_SCREEN, MAIN_UUID),
@@ -32,7 +36,7 @@ object AirPlayInfoPlist {
 
         val info = linkedMapOf<String, Any?>(
             "sourceVersion" to config.sourceVersion,
-            "features" to if (config.disableAudioOutput) CARPLAY_FEATURES_NO_AUDIO else CARPLAY_FEATURES,
+            "features" to features(config),
             "statusFlags" to 4L,
             "model" to config.model,
             "manufacturer" to config.manufacturer,

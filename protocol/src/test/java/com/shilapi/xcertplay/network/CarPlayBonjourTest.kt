@@ -3,6 +3,7 @@ package com.shilapi.xcertplay.network
 import com.shilapi.xcertplay.airplay.AirPlayConfig
 import com.shilapi.xcertplay.airplay.AirPlayDisplayConfig
 import com.shilapi.xcertplay.airplay.AirPlayIdentity
+import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -22,11 +23,22 @@ class CarPlayBonjourTest {
     )
 
     @Test
-    fun airPlayTxtRecordsMatchLivi() {
+    fun discoveryAndInfoAgreeOnAudioCapabilities() {
+        for (disabled in listOf(false, true)) {
+            val current = config.copy(disableAudioOutput = disabled)
+            val txt = CarPlayBonjourProtocol.airPlayTxtRecords(current, identity).getValue("features")
+            val words = txt.split(',').map { it.removePrefix("0x").toLong(16) }
+            val advertised = words[0] or (words[1] shl 32)
+            assertEquals(AirPlayInfoPlist.build(current)["features"], advertised)
+        }
+    }
+
+    @Test
+    fun airPlayTxtRecordsDescribeThisReceiver() {
         assertEquals(
             linkedMapOf(
                 "deviceid" to "02:00:00:00:00:02",
-                "features" to "0x44540380,0x61",
+                "features" to "0x5653aee2,0x61",
                 "flags" to "0x4",
                 "model" to "LIVI",
                 "srcvers" to "366.0",

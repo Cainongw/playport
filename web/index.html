@@ -39,7 +39,7 @@
         <div class="header-right">
           <div id="status" role="status"><span id="status-dot" data-state="idle"></span><span id="status-text">Connecting…</span></div>
           <button id="btn-focus" class="quiet-button" aria-pressed="false" title="Hide the chrome and focus on CarPlay"><svg class="icon"><use href="#i-focus"/></svg><span>Focus mode</span></button>
-          <button id="btn-fullscreen" class="icon-button" aria-label="Enter fullscreen" title="Fullscreen"><svg class="icon"><use href="#i-expand"/></svg></button>
+          <button id="btn-fullscreen" class="quiet-button" aria-label="Full screen" aria-pressed="false" title="Fill this screen at its native resolution. A new size reconnects CarPlay for all viewers."><svg class="icon"><use href="#i-expand"/></svg><span>Full screen</span></button>
         </div>
       </header>
       <div class="app-body">
@@ -91,6 +91,7 @@
         </main>
       </div>
       <button id="btn-exit-focus" class="quiet-button" hidden><svg class="icon"><use href="#i-focus"/></svg>Exit focus</button>
+      <button id="btn-exit-fullscreen" class="quiet-button" aria-label="Exit full screen" title="Exit full screen · Esc" hidden><svg class="icon"><use href="#i-close"/></svg>Exit full screen</button>
       <div id="error-banner" class="hidden" role="alert"><span id="error-text"></span><button id="btn-error-close" class="icon-button small" aria-label="Dismiss error"><svg class="icon"><use href="#i-close"/></svg></button></div>
       <div id="toast" role="status" hidden></div>
     </div>

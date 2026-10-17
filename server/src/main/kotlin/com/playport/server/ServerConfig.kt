@@ -33,8 +33,11 @@ data class ServerConfig(
     val mdns: String = "auto",
     val insecureHttp: Boolean = false,
     val accessToken: String = generateToken(),
+    val noAuth: Boolean = false,
 ) {
     val mfiDirectory: Path get() = identityDir.resolve("offline-mfi")
+
+    fun acceptsViewerToken(token: String?): Boolean = noAuth || token == accessToken
 
     companion object {
         private const val TOKEN_BYTES = 16
@@ -97,6 +100,8 @@ data class ServerConfig(
                     "--mdns" -> config = config.copy(mdns = nextValue(flag).lowercase())
                     "--http" -> config = config.copy(insecureHttp = true)
                     "--token" -> config = config.copy(accessToken = nextValue(flag))
+                    "--no-auth" -> config = config.copy(noAuth = true)
+                    "--require-auth" -> config = config.copy(noAuth = false)
                     "--help" -> {
                         printUsage()
                         kotlin.system.exitProcess(0)
@@ -137,10 +142,12 @@ data class ServerConfig(
                   --wifi-channel <n>        Wi-Fi channel (default: 0 = unknown)
                   --wifi-security <mode>    open | wpa | wpa2 (default: wpa2)
                   --bt-address <mac>        iPhone Bluetooth address for the wireless bootstrap
-                  --bt-bridge <path>        Path to the macOS bt-bridge helper
+                  --bt-bridge <path>        Path to the platform bt-bridge helper
                   --mdns <backend>          auto | dns-sd | jmdns (default: auto)
                   --http                    Serve the UI over plain HTTP (WebCodecs then only works on localhost)
                   --token <token>           Browser access token (default: generated per start)
+                  --no-auth                 Allow browser viewing/control without a token
+                  --require-auth            Require a token, overriding saved noAuth settings
                 """.trimIndent(),
             )
         }

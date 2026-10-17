@@ -7,7 +7,8 @@ const source = readFileSync(new URL('./src/input.ts', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } });
 const { InputController } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 const listeners = new Map();
-const frames = [];
+const frames = new Map();
+let nextFrameId = 0;
 const messages = [];
 let modalOpen = false;
 let rect = { left: 100, top: 50, width: 400, height: 225 };
@@ -20,7 +21,8 @@ globalThis.document = { querySelector: () => modalOpen ? {} : null };
 globalThis.window = {
   addEventListener: (name, handler) => listeners.set(name, handler),
   removeEventListener: (name) => listeners.delete(name),
-  requestAnimationFrame: (handler) => { frames.push(handler); return frames.length; },
+  requestAnimationFrame: (handler) => { const id = ++nextFrameId; frames.set(id, handler); return id; },
+  cancelAnimationFrame: (id) => frames.delete(id),
 };
 const surface = Object.assign(new Element(), {
   inert: false, style: {}, focus() {}, setPointerCapture() {},
@@ -30,7 +32,7 @@ const surface = Object.assign(new Element(), {
 const controller = new InputController(surface, (message) => messages.push(message));
 controller.attach();
 const key = (value, target = surface, extra = {}) => listeners.get('keydown')({ key: value, target, preventDefault() {}, ...extra });
-const flush = () => { for (const frame of frames.splice(0)) frame(); };
+const flush = () => { const callbacks = Array.from(frames.values()); frames.clear(); for (const frame of callbacks) frame(); };
 
 key('ArrowRight');
 assert.equal(messages.pop().knob.x, 127);
@@ -66,7 +68,14 @@ assert.deepEqual(messages.pop().contacts, [{ id: 0, x: .5, y: .5, down: true }, 
 listeners.get('pointerup')(pointer(1, 0, 0));
 listeners.get('pointercancel')(pointer(2, 0, 0));
 flush();
-assert.deepEqual(messages.pop().contacts, [], 'Release every contact, including cancelled touches');
+assert.deepEqual(messages.pop().contacts, [{ id: 1, x: 1, y: 0, down: false }], 'Release preserves the last contact coordinates');
+messages.length = 0;
+listeners.get('pointerdown')(pointer(4, 212.5, 250));
+listeners.get('pointerup')(pointer(4, 212.5, 250));
+flush();
+assert.equal(messages.length, 2, 'A click completed before the next animation frame must still send down and up');
+assert.equal(messages[0].contacts[0].down, true);
+assert.deepEqual(messages[1].contacts, [{ id: 0, x: .5, y: .5, down: false }], 'A quick click releases inside the pressed button');
 controller.detach();
 assert.equal(listeners.size, 0);
 console.log('Viewer input check passed: keyboard isolation, native controls, portrait/landscape coordinates, multi-touch, and release.');

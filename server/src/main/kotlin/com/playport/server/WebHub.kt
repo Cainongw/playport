@@ -213,6 +213,9 @@ class WebHub(
     fun install(application: Application, webRoot: Path) {
         application.install(WebSockets)
         application.routing {
+            get("/api/auth") {
+                call.respondText("""{"required":${!config.noAuth}}""", io.ktor.http.ContentType.Application.Json)
+            }
             get("/api/status") {
                 call.respondText(statusJson(), io.ktor.http.ContentType.Application.Json)
             }
@@ -220,7 +223,7 @@ class WebHub(
                 call.respondText(displayJson(), io.ktor.http.ContentType.Application.Json)
             }
             post("/api/display") {
-                if (call.request.queryParameters["token"] != config.accessToken) {
+                if (!config.acceptsViewerToken(call.request.queryParameters["token"])) {
                     call.respondText(
                         """{"error":"invalid token"}""",
                         io.ktor.http.ContentType.Application.Json,
@@ -260,7 +263,7 @@ class WebHub(
             }
             webSocket("/ws") {
                 val token = call.request.queryParameters["token"]
-                if (token != config.accessToken) {
+                if (!config.acceptsViewerToken(token)) {
                     close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "invalid token"))
                     return@webSocket
                 }

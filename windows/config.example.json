@@ -1,0 +1,10 @@
+{
+  "deviceName": "PlayPort",
+  "wireless": true,
+  "noAuth": false,
+  "wifiSsid": "",
+  "wifiPassphrase": "",
+  "wifiChannel": 0,
+  "wifiSecurity": "wpa2",
+  "mdns": "jmdns"
+}

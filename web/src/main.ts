@@ -1,4 +1,6 @@
 import { AudioEngine } from './audio';
+import { canOpenViewer } from './auth';
+import { FullscreenViewer, matchFullscreenDisplay } from './fullscreen';
 import { InputController } from './input';
 import { MicrophoneUplink } from './mic';
 import type { ServerMessage, WireMessage } from './protocol';
@@ -95,6 +97,7 @@ const microphone = new MicrophoneUplink(
 const audio = new AudioEngine((message) => showError(message));
 
 const token = resolveToken();
+let viewerAccessAllowed = Boolean(token);
 const connection = new Connection(token, {
   onWire: (message: WireMessage) => {
     switch (message.kind) {
@@ -251,21 +254,18 @@ clickButton('btn-keyframe', () => {
   connection.send({ type: 'keyframe' });
   toast('Requested a fresh video frame');
 });
-clickButton('btn-fullscreen', () => void toggleFullscreen());
-
-async function toggleFullscreen(): Promise<void> {
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
-    else toast('Fullscreen is unavailable in this browser. Try focus mode.');
-  } catch {
-    toast('Could not enter fullscreen. Try focus mode.');
-  }
-}
-
-document.addEventListener('fullscreenchange', () => {
-  requiredElement('btn-fullscreen').setAttribute('aria-label', document.fullscreenElement ? 'Exit fullscreen' : 'Enter fullscreen');
-});
+const fullscreenViewer = new FullscreenViewer(
+  app,
+  requiredElement<HTMLButtonElement>('btn-fullscreen'),
+  requiredElement<HTMLButtonElement>('btn-exit-fullscreen'),
+  (size, signal) => {
+    if (!viewerAccessAllowed) return Promise.reject(new Error('Open your PlayPort access link first.'));
+    return matchFullscreenDisplay(size, token, signal);
+  },
+  toast,
+  fitScreen,
+);
+clickButton('btn-fullscreen', () => void fullscreenViewer.enter());
 
 let toastTimer = 0;
 function toast(message: string): void {
@@ -306,10 +306,21 @@ async function unlockAudio(): Promise<void> {
 window.addEventListener('pointerdown', () => void unlockAudio(), { once: false });
 window.addEventListener('keydown', () => void unlockAudio(), { once: false });
 
-if (!token) {
-  setStatus('idle', 'Access link needed');
-  viewerState.textContent = 'SETUP';
-  setOverlay('Your personal link is the key.', 'Open the viewer link printed by the PlayPort server. It includes the access token needed to connect.', 'ONE MORE STEP');
+async function connectViewer(): Promise<void> {
+  try {
+    viewerAccessAllowed = await canOpenViewer(token);
+    displayApply.disabled = !viewerAccessAllowed || displayFields.disabled;
+    if (viewerAccessAllowed) {
+      connection.connect();
+    } else {
+      setStatus('idle', 'Access link needed');
+      viewerState.textContent = 'SETUP';
+      setOverlay('Your personal link is the key.', 'Open the viewer link printed by the PlayPort server. It includes the access token needed to connect.', 'ONE MORE STEP');
+    }
+  } catch {
+    setStatus('idle', 'Server unavailable');
+    setOverlay('Could not reach PlayPort.', 'Check the server connection, then reload this page.');
+  }
 }
 
 if (typeof VideoDecoder === 'undefined') {
@@ -320,7 +331,7 @@ if (typeof VideoDecoder === 'undefined') {
   );
 }
 
-if (token) connection.connect();
+void connectViewer();
 
 // --- Display panel: resolution, orientation and CarPlay UI size ---
 
@@ -432,7 +443,7 @@ async function refreshDisplayInfo(): Promise<void> {
     }
     if (!hevcSupported && info.hevc) displayCodec.value = 'h264';
     displayFields.disabled = false;
-    displayApply.disabled = !token;
+    displayApply.disabled = !viewerAccessAllowed;
     displayStatus.textContent =
       `Current: ${info.width}×${info.height} @ ${info.fps} fps (${info.orientation}), ` +
       `${info.hevc ? 'HEVC' : 'H.264'}, UI size ${info.uiScale}%`;
@@ -448,13 +459,13 @@ async function applyDisplay(): Promise<void> {
   const uiScale = Number(displayUiScale.value);
   const fps = Number(displayFps.value);
   const hevc = displayCodec.value === 'h265';
-  if (!token || displayApply.disabled || !displayForm.reportValidity()) return;
+  if (!viewerAccessAllowed || displayApply.disabled || !displayForm.reportValidity()) return;
   displayApply.disabled = true;
   displayFields.disabled = true;
   displayStatus.dataset.error = 'false';
   displayStatus.textContent = 'Applying…';
   try {
-    const response = await fetch(`/api/display?token=${encodeURIComponent(token)}`, {
+    const response = await fetch(`/api/display${token ? `?token=${encodeURIComponent(token)}` : ''}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ width, height, fps, uiScale, hevc }),

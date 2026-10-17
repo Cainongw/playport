@@ -42,6 +42,7 @@ export class InputController {
   }
 
   detach(): void {
+    this.cancelPendingFlush();
     const surface = this.surface;
     surface.removeEventListener('pointerdown', this.onPointerDown);
     surface.removeEventListener('pointermove', this.onPointerMove);
@@ -52,6 +53,7 @@ export class InputController {
   }
 
   private readonly onPointerDown = (event: PointerEvent): void => {
+    if (this.surface.inert) return;
     event.preventDefault();
     if (this.pointers.size >= MAX_CONTACTS) return;
     this.surface.focus({ preventScroll: true });
@@ -62,7 +64,7 @@ export class InputController {
       y: this.normalizeY(event.clientY),
       down: true,
     });
-    this.scheduleFlush();
+    this.flushContacts();
   };
 
   private readonly onPointerMove = (event: PointerEvent): void => {
@@ -78,8 +80,11 @@ export class InputController {
     const pointer = this.pointers.get(event.pointerId);
     if (!pointer) return;
     event.preventDefault();
+    // Match DiPlay's CarPlayTouchMapper: lift at the contact's last coordinates.
+    // Dropping it first produces a (0,0) release and cancels touch-up-inside buttons.
+    pointer.down = false;
+    this.flushContacts();
     this.pointers.delete(event.pointerId);
-    this.scheduleFlush();
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
@@ -150,14 +155,25 @@ export class InputController {
     if (this.pendingFlush !== 0) return;
     this.pendingFlush = window.requestAnimationFrame(() => {
       this.pendingFlush = 0;
-      const contacts: TouchContact[] = Array.from(this.pointers.values()).map((pointer) => ({
-        id: pointer.slot,
-        x: pointer.x,
-        y: pointer.y,
-        down: pointer.down,
-      }));
-      this.send({ type: 'touch', contacts });
+      this.flushContacts();
     });
+  }
+
+  private cancelPendingFlush(): void {
+    if (this.pendingFlush !== 0) window.cancelAnimationFrame(this.pendingFlush);
+    this.pendingFlush = 0;
+  }
+
+  private flushContacts(): void {
+    // Down/up edges cannot be coalesced: a quick click may fit in one display frame.
+    this.cancelPendingFlush();
+    const contacts: TouchContact[] = Array.from(this.pointers.values()).map((pointer) => ({
+      id: pointer.slot,
+      x: pointer.x,
+      y: pointer.y,
+      down: pointer.down,
+    }));
+    this.send({ type: 'touch', contacts });
   }
 
   private normalizeX(clientX: number): number {

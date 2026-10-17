@@ -16,6 +16,8 @@ dependencies {
     implementation("org.bouncycastle:bcpkix-jdk18on:1.79")
     implementation("org.slf4j:slf4j-simple:2.0.20")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("io.ktor:ktor-server-test-host:3.6.0")
+    testImplementation("io.ktor:ktor-client-websockets:3.6.0")
 }
 
 java {

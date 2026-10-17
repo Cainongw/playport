@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory
  * Wireless CarPlay bring-up: Bluetooth RFCOMM iAP2 bootstrap, Wi-Fi credentials handoff and the
  * tunneled iAP2 handover.
  *
- * Requires the macOS `bt-bridge` helper (macos/bt-bridge) with the iPhone already paired in
- * System Settings, and the server running on the Wi-Fi network the phone should join.
+ * Requires a platform `bt-bridge` helper with the iPhone already paired, and the server
+ * reachable on the LAN of the Wi-Fi network the phone should join.
  */
 class WirelessBootstrap(private val server: CarPlayServer) : Closeable {
     private val log = LoggerFactory.getLogger("wireless")
@@ -43,18 +43,18 @@ class WirelessBootstrap(private val server: CarPlayServer) : Closeable {
                     "wireless bootstrap skipped: no Wi-Fi network detected. " +
                         "Pass the Wi-Fi the iPhone should use: " +
                         "--wifi-ssid \"<name>\" --wifi-passphrase \"<password>\" " +
-                        "(macOS hides the SSID from processes without Location Services permission).",
+                        "(configure it explicitly when the server uses Ethernet).",
                 )
                 return
             }
             if (!wifi.ssid.isNullOrBlank() && config.wifiPassphrase.isNullOrBlank()) {
                 log.warn("no --wifi-passphrase configured; the phone must already know network {}", wifi.ssid)
             }
-            val bridgePath = resolveBridgePath(config.bluetoothBridge)
+            val bridgePath = BluetoothBridge.resolvePath(config.bluetoothBridge)
             if (bridgePath == null) {
                 log.warn(
                     "wireless bootstrap skipped: bt-bridge helper not found; " +
-                        "build it with macos/bt-bridge/build.sh or pass --bt-bridge",
+                        "build macos/bt-bridge/build.sh or windows/bt-bridge/build.ps1, or pass --bt-bridge",
                 )
                 return
             }
@@ -64,7 +64,7 @@ class WirelessBootstrap(private val server: CarPlayServer) : Closeable {
                 log.warn("wireless bootstrap skipped: no paired iPhone found; pass --bt-address AA:BB:CC:DD:EE:FF")
                 return
             }
-            val hostBluetoothMac = BluetoothBridge.localAddress(bridgePath) ?: server.deviceId
+            val hostBluetoothMac = server.bluetoothMac
             log.info("wireless bootstrap: iPhone={} hostBt={} wifi={} ch={}", deviceAddress, hostBluetoothMac, wifi.ssid, wifi.channel)
 
             val stream = BluetoothBridge.open(bridgePath, deviceAddress).also { bridgeProcess = it }
@@ -122,15 +122,6 @@ class WirelessBootstrap(private val server: CarPlayServer) : Closeable {
         }
     }
 
-    private fun resolveBridgePath(configured: Path?): Path? {
-        val candidates = listOfNotNull(
-            configured,
-            Path.of("macos/bt-bridge/bt-bridge"),
-            Path.of("macos/bt-bridge/.build/bt-bridge"),
-        )
-        return candidates.firstOrNull { Files.isExecutable(it) }
-    }
-
     override fun close() {
         stopped = true
         running = false
@@ -139,9 +130,21 @@ class WirelessBootstrap(private val server: CarPlayServer) : Closeable {
     }
 }
 
-/** Helpers around the macOS bt-bridge executable. */
+/** Shared CLI contract implemented by the macOS and Windows bt-bridge executables. */
 object BluetoothBridge {
     private val log = LoggerFactory.getLogger("bt-bridge")
+
+    fun resolvePath(configured: Path?): Path? {
+        val candidates = listOfNotNull(
+            configured,
+            Path.of("build/windows-bt-bridge/bt-bridge.exe").takeIf {
+                System.getProperty("os.name").lowercase().startsWith("windows")
+            },
+            Path.of("macos/bt-bridge/bt-bridge"),
+            Path.of("macos/bt-bridge/.build/bt-bridge"),
+        )
+        return candidates.firstOrNull { Files.isExecutable(it) }
+    }
 
     fun localAddress(bridgePath: Path): String? = runCatching {
         val process = ProcessBuilder(bridgePath.toString(), "--print-address").start()

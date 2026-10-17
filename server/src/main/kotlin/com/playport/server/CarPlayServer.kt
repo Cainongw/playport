@@ -39,6 +39,15 @@ class CarPlayServer(val config: ServerConfig, private val configStore: ConfigSto
     val identity = AirPlayIdentityStore.loadOrCreate(config.stateDir)
     val deviceId: String = AirPlayIdentityStore.deviceId(identity)
     val bindAddress: InetAddress = Networks.resolve(config.bindAddress)
+    // DiPlay uses the real adapter address for both iAP2 and AirPlay bluetoothIDs.
+    // The persistent AirPlay device ID is a separate identity, not a Bluetooth MAC.
+    val bluetoothMac: String by lazy {
+        if (config.wireless) {
+            BluetoothBridge.resolvePath(config.bluetoothBridge)?.let(BluetoothBridge::localAddress)
+                ?.also { log.info("AirPlay Bluetooth adapter identity {}", it) }
+                ?: deviceId.also { log.warn("Bluetooth adapter address unavailable; using fallback identity") }
+        } else deviceId
+    }
 
     val display = DisplayState(
         config.displayWidth,
@@ -49,7 +58,8 @@ class CarPlayServer(val config: ServerConfig, private val configStore: ConfigSto
     )
     val hub = WebHub(config, display)
     val bridge = WebBridge(hub)
-    val media = CarPlayMediaEngine(bridge, microphoneEnabled = true, audioCaptureDirectory = null)
+    private val microphoneEnabled = true
+    val media = CarPlayMediaEngine(bridge, microphoneEnabled = microphoneEnabled, audioCaptureDirectory = null)
 
     private val pairings = loadPairings()
     val mfi: MfiAuthenticator by lazy { MfiIdentity.load(config) }
@@ -65,7 +75,7 @@ class CarPlayServer(val config: ServerConfig, private val configStore: ConfigSto
         get() = AirPlayConfig(
             deviceName = config.deviceName,
             deviceId = deviceId,
-            btMac = deviceId,
+            btMac = bluetoothMac,
             sourceVersion = config.sourceVersion,
             main = com.shilapi.xcertplay.airplay.CarPlayUiScale.apply(
                 AirPlayDisplayConfig(
@@ -79,7 +89,9 @@ class CarPlayServer(val config: ServerConfig, private val configStore: ConfigSto
             port = config.airPlayPort,
             entertainmentSampleRate = 48_000,
             hevc = display.hevc,
-            microphone = false,
+            // Offer the implemented uplink as well as output. iOS may keep all audio on
+            // the phone when no input formats are offered (also reported in DiPlay #288).
+            microphone = microphoneEnabled,
             manufacturer = config.manufacturer,
             model = config.model,
             oemLabel = config.deviceName,

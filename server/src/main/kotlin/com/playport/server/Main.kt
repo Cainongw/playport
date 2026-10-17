@@ -67,13 +67,15 @@ fun main(args: Array<String>) {
     http.start(wait = false)
 
     val scheme = if (config.insecureHttp) "http" else "https"
-    val url = "$scheme://${server.bindAddress.hostAddress}:${config.httpPort}/?token=${config.accessToken}"
+    val url = "$scheme://${server.bindAddress.hostAddress}:${config.httpPort}/" +
+        if (config.noAuth) "" else "?token=${config.accessToken}"
     println()
     println("  PlayPort ${projectVersion()}")
     println("  ------------------------------------------------------------------")
     println("  CarPlay device name : ${config.deviceName}")
     println("  AirPlay listener    : ${server.bindAddress.hostAddress}:${config.airPlayPort}")
     println("  Browser UI          : $url")
+    println("  Browser access      : ${if (config.noAuth) "open (token disabled)" else "token required"}")
     if (!config.insecureHttp) {
         println("  (accept the self-signed certificate warning once; WebCodecs needs HTTPS)")
     }

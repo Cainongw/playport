@@ -235,7 +235,7 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
   #status { max-width: 120px; font-size: 9px; gap: 6px; }
   .header-right { gap: 2px; }
   #btn-focus { width: 34px; border: 0; display: inline-flex; }
-  #btn-fullscreen { width: 34px; height: 40px; }
+  #btn-fullscreen { height: 40px; padding-inline: 9px; }
   .app-body { flex-direction: column; }
   .rail { flex-direction: row; width: 100%; padding: 8px 12px; gap: 8px; border-right: 0; border-bottom: 1px solid var(--edge); }
   .rail-top, .rail-bottom { flex-direction: row; gap: 4px; }
@@ -315,3 +315,22 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Full screen fills the viewport; normal Focus mode keeps its existing controls. */
+#app.immersive-mode { position: fixed; inset: 0; width: 100%; height: 100dvh; min-height: 0; overflow: hidden; background: #000; z-index: 20; }
+#app.immersive-mode #header,
+#app.immersive-mode .rail,
+#app.immersive-mode .workspace-heading,
+#app.immersive-mode .workspace-footer,
+#app.immersive-mode .viewer-bar,
+#app.immersive-mode .viewer-footer,
+#app.immersive-mode .control-dock,
+#app.immersive-mode #btn-exit-focus { display: none; }
+#app.immersive-mode .workspace { max-width: none; width: 100%; height: 100%; margin: 0; padding: 0; gap: 0; }
+#app.immersive-mode .viewer { min-height: 0; border: 0; border-radius: 0; box-shadow: none; background: #000; }
+#app.immersive-mode #screen-container { background: #000; }
+#btn-exit-fullscreen { position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); z-index: 30; background: #111d; color: var(--text); opacity: 0; pointer-events: none; transition: opacity .2s; }
+#app.immersive-mode.show-fullscreen-exit #btn-exit-fullscreen,
+#app.immersive-mode #btn-exit-fullscreen:hover,
+#app.immersive-mode #btn-exit-fullscreen:focus-visible { opacity: 1; pointer-events: auto; }
+@media (max-width: 820px) { #btn-fullscreen span { display: none; } }

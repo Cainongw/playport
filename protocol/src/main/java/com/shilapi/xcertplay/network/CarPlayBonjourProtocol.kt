@@ -2,6 +2,7 @@ package com.shilapi.xcertplay.network
 
 import com.shilapi.xcertplay.airplay.AirPlayConfig
 import com.shilapi.xcertplay.airplay.AirPlayIdentity
+import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 
 /** Pure protocol values shared by the Android runtime, the desktop server and JVM tests. */
 object CarPlayBonjourProtocol {
@@ -13,7 +14,7 @@ object CarPlayBonjourProtocol {
         identity: AirPlayIdentity,
     ): Map<String, String> = linkedMapOf(
         "deviceid" to config.deviceId,
-        "features" to "0x44540380,0x61",
+        "features" to featuresTxt(AirPlayInfoPlist.features(config)),
         "flags" to "0x4",
         "model" to config.model,
         "srcvers" to config.sourceVersion,
@@ -21,6 +22,9 @@ object CarPlayBonjourProtocol {
         "pi" to identity.pairingId,
         "pk" to identity.publicKeyHex,
     )
+
+    private fun featuresTxt(features: Long): String =
+        "0x${(features and 0xffff_ffffL).toString(16)},0x${(features ushr 32).toString(16)}"
 
     fun connectProbeRequest(
         host: String,

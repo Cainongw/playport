@@ -32,6 +32,7 @@ data class PersistentConfig(
     val wifiSecurity: String = "wpa2",
     val bluetoothDeviceAddress: String? = null,
     val mdns: String = "auto",
+    val noAuth: Boolean = false,
 ) {
     /** Server defaults from this file (CLI flags are applied on top and override). */
     fun toServerDefaults(identityDir: Path, stateDir: Path): ServerConfig = ServerConfig(
@@ -56,6 +57,7 @@ data class PersistentConfig(
         },
         bluetoothDeviceAddress = bluetoothDeviceAddress,
         mdns = mdns,
+        noAuth = noAuth,
         identityDir = identityDir,
         stateDir = stateDir,
     )
@@ -85,6 +87,7 @@ data class PersistentConfig(
             },
             bluetoothDeviceAddress = config.bluetoothDeviceAddress,
             mdns = config.mdns,
+            noAuth = config.noAuth,
         )
     }
 }
