@@ -112,12 +112,14 @@ layout and server settings unchanged.
 | RFCOMM connection fails | Enable Bluetooth on both devices, unlock the phone, check the existing pairing, and retry |
 | Phone does not start CarPlay | Check Wi-Fi credentials, LAN reachability and the iPhone's CarPlay prompt/settings |
 | Another screen cannot reach the viewer | Use the printed receiver address; check TCP 8080 access, Windows firewall and router client isolation |
-| Page loads but phone never reaches the receiver | Check AirPlay TCP 7000, mDNS discovery and media traffic; allow the Java receiver on the trusted LAN |
+| Page loads but phone never reaches the receiver | Check the AirPlay port printed by the launcher, mDNS discovery and media traffic; allow the Java receiver on the trusted LAN |
 | Video is black | Use HTTPS, handle the certificate prompt, use H.264 and refresh with Ctrl+F5 |
 | Browser is silent | Click/tap the page, check the Audio panel/system output, then play music in CarPlay |
 | Port or state already in use | Stop the existing receiver before launching again |
 
-The defaults are HTTPS TCP 8080 and AirPlay TCP 7000. AirPlay also negotiates media
+The default is HTTPS TCP 8080 and AirPlay normally uses TCP 7000. If Windows has reserved
+7000 (for example in a Hyper-V excluded range), the launcher selects an available fallback
+port and prints it; mDNS advertises the selected port to the iPhone. AirPlay also negotiates media
 ports, so allowing only those two TCP ports is not sufficient for all media traffic.
 
 ## Validation and limitations

@@ -30,6 +30,20 @@ if (-not $BindAddress) {
     }
     $BindAddress = $candidates[0]
 }
+
+function Test-PortAvailable([string]$Address, [int]$Port) {
+    $listener = $null
+    try {
+        $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Parse($Address), $Port)
+        $listener.Start()
+        return $true
+    } catch {
+        return $false
+    } finally {
+        if ($listener) { $listener.Stop() }
+    }
+}
+
 Push-Location $repo
 $runLock = $null
 try {
@@ -42,6 +56,24 @@ try {
     $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $webPort,$airPlayPort -ErrorAction SilentlyContinue |
         Where-Object { $_.LocalAddress -in @($BindAddress, '0.0.0.0', '::') })
     if ($listeners.Count -gt 0) { throw 'A server already uses a configured port. Stop it before starting PlayPort.' }
+    if (-not (Test-PortAvailable $BindAddress $webPort)) {
+        throw "Browser port $webPort cannot bind on $BindAddress. Check Windows port reservations or another service."
+    }
+    $airPlayPortOverride = $false
+    if (-not (Test-PortAvailable $BindAddress $airPlayPort)) {
+        # Hyper-V and other Windows components can reserve a port range without a
+        # listening process. Keep 7000 as the normal/default port, but use an mDNS
+        # advertised fallback when the OS has reserved it. An actually listening
+        # service was rejected above instead of being silently bypassed.
+        $fallbackPorts = 7100, 7300, 7400, 7500, 7600, 7700
+        $fallback = $fallbackPorts | Where-Object { Test-PortAvailable $BindAddress $_ } | Select-Object -First 1
+        if ($null -eq $fallback) {
+            throw "AirPlay port $airPlayPort cannot bind and no fallback port is available. Check Windows port reservations."
+        }
+        Write-Warning "AirPlay port $airPlayPort is reserved or unavailable on $BindAddress; using fallback port $fallback."
+        $airPlayPort = [int]$fallback
+        $airPlayPortOverride = $true
+    }
     if (-not $NoBuild) {
         & .\gradlew.bat --console=plain :server:installDist
         if ($LASTEXITCODE -ne 0) { throw 'Server build failed' }
@@ -74,6 +106,7 @@ try {
     Write-Output "Runtime snapshot: $runtime"
     # Credentials stay in the config file, not command-line arguments or shell history.
     $serverArgs = @('--state-dir', $StateDir, '--bind', $BindAddress, '--bt-bridge', $bridge, '--mdns', 'jmdns')
+    if ($airPlayPortOverride) { $serverArgs += @('--airplay-port', $airPlayPort) }
     if ($Token) { $serverArgs += @('--token', $Token) }
     if ($NoAuth) { $serverArgs += '--no-auth' }
     if ($RequireAuth) { $serverArgs += '--require-auth' }

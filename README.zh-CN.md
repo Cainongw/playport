@@ -324,6 +324,7 @@ Windows 启动脚本默认读取项目内 `state/windows-wireless/config.json`�
 |---|---|
 | Windows 找不到手机 | 先在系统设置中配对；手机改名或有多台手机时指定 `bluetoothDeviceAddress` |
 | Windows 提示 LAN 地址不明确 | 通过 `-BindAddress` 指定电脑的物理网卡 IPv4 |
+| Windows 保留了 AirPlay 7000 端口 | 启动脚本会检测系统保留端口，自动选择可用备用端口，并通过 mDNS 告知 iPhone |
 | 其他设备打不开网页 | 使用终端打印的局域网地址，检查防火墙和路由器客户端隔离；脚本不自动修改防火墙 |
 | 没有 CarPlay 提示 | 检查 Wi-Fi 配置和网络互通，查看 iPhone 的“设置 → 通用 → CarPlay” |
 | 页面黑屏 | 使用 HTTPS，处理证书提示，先选 H.264；更新后按 Ctrl+F5 |

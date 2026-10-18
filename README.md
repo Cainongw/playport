@@ -372,6 +372,7 @@ With the Windows launcher, use `-NoAuth` or `-RequireAuth` for these overrides:
 |---|---|
 | Windows finds no paired iPhone | Pair in Windows Settings first. For a renamed phone or multiple phones, set `bluetoothDeviceAddress` in the local config; the helper's `--list` shows paired addresses. |
 | Windows reports an ambiguous LAN address | Pass `-BindAddress <receiver-LAN-IPv4>` to `windows/run.ps1`. |
+| Windows reserves AirPlay port 7000 | The launcher detects a system-reserved port and selects an available fallback, then advertises that port through mDNS. |
 | Another screen cannot open the page | Use the receiver's printed LAN URL, check firewall access and router client isolation. The launcher does not change firewall rules. |
 | Video works but the browser is silent | Click/tap to enable audio, check the Audio panel and system output, then start music in CarPlay. Use Ctrl+F5 after updating the web build. |
 | `bt-bridge` aborts immediately (`SIGABRT`) | macOS Bluetooth privacy. System Settings → Privacy & Security → Bluetooth → enable your terminal app. |
